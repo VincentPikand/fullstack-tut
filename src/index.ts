@@ -1,12 +1,28 @@
-import {MikroORM} from "@mikro-orm/core";
+import { MikroORM } from "@mikro-orm/core";
 import { __prod__ } from "./constants";
 import { Post } from "./entities/post";
-import microConfig from './mikro-orm.config'
-const main = async () => {
-    const orm = await MikroORM.init(microConfig);
-    await orm.getMigrator().up();
-    const post = orm.em.create(Post, {title: 'entry'});
-    await orm.em.persistAndFlush(post);
+import microConfig from "./mikro-orm.config";
+import "reflect-metadata";
+import express from "express";
+import { ApolloServer } from "apollo-server-express";
+import { buildSchema } from "type-graphql";
+import { HelloResolver } from "./resolvers/hello";
+import { PostResolver } from "./resolvers/post";
 
-}
+const main = async () => {
+  const orm = await MikroORM.init(microConfig);
+  await orm.getMigrator().up();
+  const app = express();
+  const apolloServer = new ApolloServer({
+    schema: await buildSchema({
+      resolvers: [HelloResolver, PostResolver],
+      validate: false,
+    }),
+    context: () => ({ em: orm.em }),
+  });
+  apolloServer.applyMiddleware({ app });
+  app.listen(4000, () => {
+    console.log("listening on 4k");
+  });
+};
 main();
